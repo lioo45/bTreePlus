@@ -2,12 +2,19 @@ package bTreePlus
 
 import (
 	"unsafe"
+	"log"
+	"os"
 )
 
 type BTreeValue interface {
 	Key()int
 }
 
+var log1 *log.Logger
+func init(){
+	logFile,_:=os.OpenFile("/Users/pro/log/btreeLog.txt",os.O_CREATE|os.O_RDWR,0666)
+	log1=log.New(logFile,"",log.LstdFlags|log.Lshortfile)
+}
 type BTreePlus struct{
 	root *TreeNode
 	degree int
@@ -60,14 +67,10 @@ func newTreeNode(p *TreeNode)*TreeNode{
 	return t
 }
 
-
-
-
 //返回B+树的阶数
 func (this *BTreePlus)Degree()int{
 	return this.degree
 }
-
 
 //插入,需要考虑的情况
 func (this *BTreePlus)Insert(value BTreeValue){
@@ -75,25 +78,24 @@ func (this *BTreePlus)Insert(value BTreeValue){
 		this.init(value)
 		return
 	}
-
 	//查找
-	node,pos:=getInsertPosition(this.root,value.Key(),true)
+	node,pos,same:=getInsertPosition(this.root,value.Key())
 
-	//存在相同的key 覆盖掉
-	if node!=nil&&pos<0{
-		pos=-pos
-		node.children.Relace(value,pos)
+	if value.Key()==94{
+		log1.Println("在Insert里选择的node的父节点:",node.parent.keys.head.next.value,"位置 : ",pos)
 	}
-
+	//如果存在相同的key则覆盖掉
+	//fmt.Println("yundao dao 82")
+	if same{
+		node.children.Relace(value,pos)
+		return
+	}
 	//插入
 	node.keys.Insert(value.Key(),pos)
 	node.children.Insert(value,pos)
-	//if value.Key()=="10"{
-	//	fmt.Println("调试信息,node的最大值",node.keys.tail.value,"位置:",pos)
-	//}
 
+	//插入的value的key>当前treeNode的最大值,递归修改父节点key的最大值.
 	if pos>=node.keys.Len()-1{
-		//插入的value的key>当前treeNode的最大值,递归修改父节点key的最大值.
 		parent:=node.parent
 		for ;parent!=nil;parent=parent.parent{
 			parent.keys.Relace(value.Key(),parent.keys.Len()-1)
@@ -129,17 +131,22 @@ func fission(node *TreeNode,degree int)*TreeNode{
 
 	otherNode:=&TreeNode{node.isLeaf,node.parent,kl1,cl1}
 
+	fissionPosKey:=otherNode.keys.tail.value
+	maxKey:=node.keys.tail.value
+
 	if node.isLeaf{
 		//连接叶子节点
 		ln2:=(*leafNode)(unsafe.Pointer(node))
 		ln1:=&leafNode{*otherNode,ln2.pre,ln2}
 		ln2.pre.next=ln1
 		ln2.pre=ln1
+		otherNode=(*TreeNode)(unsafe.Pointer(ln1))
+	}else{
+		//将otherNode的所有孩子的父指针设置为otherNode
+		for e:=cl1.head.next;e!=nil;e=e.next{
+			e.value.(*TreeNode).parent=otherNode
+		}
 	}
-
-
-	fissionPosKey:=otherNode.keys.tail.value
-	maxKey:=node.keys.tail.value
 
 	//处理父节点
 	//maxValue:=node.children.tail.value
@@ -154,49 +161,57 @@ func fission(node *TreeNode,degree int)*TreeNode{
 		otherNode.parent=root
 		return root
 	}else{
-		parent,pInsertPos:=getInsertPosition(node.parent,maxKey.(int),false)
-		parent.keys.Insert(fissionPosKey,pInsertPos)
-		parent.children.Insert(otherNode,pInsertPos)
+
+		pInsertPos,_:=getInsertPos(node.parent,fissionPosKey.(int))
+		if fissionPosKey==11{
+			log1.Println("在fission里选择了父节点的插入的位置: ",pInsertPos)
+		}
+		node.parent.keys.Insert(fissionPosKey,pInsertPos)
+		node.parent.children.Insert(otherNode,pInsertPos)
 		//递归
 		return fission(node.parent,degree)
 	}
 }
 
-//func judgeSituation()
-
-
 //如果node==nil 返回nil ,-1
 //如果返回的node!=nil int<0为表示 已经含有相同的key了,会替换掉原来的
-func getInsertPosition(node *TreeNode,key int,rec bool)(*TreeNode,int){
+func getInsertPosition(node *TreeNode,key int)(*TreeNode,int,bool) {
 	if node==nil{
-		return nil,-1
+		return nil,-1,false
 	}
-	pos:=0
-	ln:=node.keys.head
-	for ln=ln.next;ln!=nil;pos++{
+	pos,same:=getInsertPos(node,key)
+	if key==11{
+		log1.Print("node: ",node.keys.head.next.value)
+		log1.Println("选择了",pos)
+	}
+	if node.isLeaf{
+		return node,pos,same
+	}else{
+		return getInsertPosition(node.children.GetIndexValue(pos).(*TreeNode),key)
+	}
+}
+func getInsertPos(node *TreeNode,key int)(r int,same bool) {
+	if node==nil{
+		return -1,false
+	}
+	pos := 0
+	ln := node.keys.head
+	for ln = ln.next; ln != nil; pos++ {
 		if ln.value.(int)>key{
-			if node.isLeaf||!rec{
-				return node,pos
-			}else {
-				return getInsertPosition(node.children.getIndexNode(pos).value.(*TreeNode),key,rec)
-			}
+			return pos,false
 		}else if ln.value.(int)==key{
-			if !rec{
-				return node,pos
-			}
-			if node.isLeaf{
-				return  node,-pos
-			}else{
-				return getInsertPosition(node.children.getIndexNode(pos).value.(*TreeNode),key,rec)
-			}
-
+			return pos,true
 		}
 		ln=ln.next
 	}
-	if node.isLeaf||!rec{
-		return node,pos
-	}else{
-		return getInsertPosition(node.children.getIndexNode(pos).value.(*TreeNode),key,rec)
-	}
+	return pos,false
 }
 
+//返回一个结点的深度 从1开始计数
+func (this *BTreePlus)getHigh(tn *TreeNode)int {
+	high:=1
+	for n:=tn.parent;n!=nil;n=n.parent{
+		high++
+	}
+	return high
+}
