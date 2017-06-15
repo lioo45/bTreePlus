@@ -22,12 +22,9 @@ func (this *linkedList)Tail()*ListNode{
 	return this.tail
 }
 
-
-
 func (this *ListNode)Next()*ListNode{
 	return this.next
 }
-
 
 func NewLinkedList()*linkedList{
 	l:=new(linkedList)
@@ -38,7 +35,6 @@ func NewLinkedList()*linkedList{
 func (this *linkedList)Len()int{
 	return this.len
 }
-
 
 func (l *linkedList)Push(value interface{}){
 	node:=new(ListNode)
@@ -153,12 +149,29 @@ func (this *linkedList)Remove(index int)*ListNode{
 	if pre.next==nil{
 		this.tail=pre
 	}
-	if pre==this.head{
-		this.tail=this.head
-	}
 	this.len--
 	return node
 }
+
+func (this *linkedList)InsertAllToFront(l2 *linkedList){
+	if l2==nil||l2.Len()<=0{
+		return
+	}
+	l2.tail.next=this.head.next
+	this.head.next=l2.head.next
+
+	this.len+=l2.len
+}
+
+func (this *linkedList)InsertAllToTail(l2 *linkedList) {
+	if l2==nil||l2.Len()<=0{
+		return
+	}
+	this.tail.next=l2.head.next
+	this.len+=l2.len
+}
+
+
 
 func (this *linkedList)Relace(value interface{},index int){
 	node:=this.getIndexNode(index)
