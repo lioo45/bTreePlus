@@ -41,7 +41,6 @@ func TestBTreePlus_Remove(t *testing.T) {
 	}
 	//fmt.Println(stus)
 	fmt.Println()
-	fmt.Println("删除前")
 	//printAll(btree)
 	for i:=0;i<len(stus);i++{
 		//fmt.Println("删除:",stus[i].ID)

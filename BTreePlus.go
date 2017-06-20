@@ -220,18 +220,14 @@ func (this *BTreePlus)Remove(value BTreeValue)bool {
 	//不存在这个key
 	if !same{
 		return false
-		log1.Println("不存在这个key")
 	}
-	log1.Println("进入remove")
 	return this.remove(cNode,value.Key())
 }
 
 //调用它时已经保证这个key已经存在
 func (this *BTreePlus)remove(cNode *TreeNode,key int)bool{
-	log1.Println("要删除的key ",key)
 	//找到要删除的记录key,value的位置
 	pos,_:=getPos(cNode,key)
-	log1.Println("要删除的key的位置位于节点:",cNode.keys.head.next.value," ",cNode.keys.tail.value,"的位置: ",pos)
 	//删除记录
 	maxKey:=cNode.keys.tail.value.(int)
 	deleteKey:=cNode.keys.Remove(pos).value.(int)
@@ -242,14 +238,13 @@ func (this *BTreePlus)remove(cNode *TreeNode,key int)bool{
 	}
 	//删除记录后 如果这个记录是当前节点的maxKey 需要递归修改父节点的key
 	if deleteKey==maxKey{
-		log1.Println("开始递归更新父节点的key,更新为:",cNode.keys.tail.value.(int))
 		updateFatherKey(deleteKey,cNode.keys.tail.value.(int), cNode.parent)
 	}
 	//删除记录后节点的keys的长度>=度数/2或者当前节点为根节点
 	if cNode.keys.len>=this.degree/2+1||cNode==this.root{
-		log1.Println("删除",key,"完成")
 		if this.root.children.len==1&&!this.root.isLeaf{
 			this.root=this.root.children.head.next.value.(*TreeNode)
+			this.root.parent=nil
 		}
 		return true
 	}else{
@@ -257,11 +252,8 @@ func (this *BTreePlus)remove(cNode *TreeNode,key int)bool{
 		broNode,broPos:=brotherHasMoreKey(cNode,cNode.keys.tail.value.(int),this.degree)
 		if broPos>=0{
 			//租借这个兄弟节点一个key value
-			log1.Println("向",broNode.keys.head.next.value," ",broNode.keys.tail.value,"租借kv")
 			borrowKVFromBrother(cNode,broNode)
 		}else{
-			log1.Println("合并",cNode.keys.head.next.value," ",cNode.keys.tail.next,"和",
-			broNode.keys.head.next.value," ",broNode.keys.tail.value)
 			//合并 合并后父节点会删除一个kv 所以可能需要递归处理
 			pKey:=this.combineNode(broNode,cNode)
 			//递归处理
@@ -317,7 +309,6 @@ func (this *BTreePlus)combineNode(broNode,cnode *TreeNode)int{
 func borrowKVFromBrother(node,broNode *TreeNode){
 	broMaxKey:=broNode.keys.tail.value.(int)
 	cMaxKey:=node.keys.tail.value.(int)
-	log1.Println("bro key: ",broMaxKey," ckey: ",cMaxKey)
 	if broMaxKey>cMaxKey{
 		//broNode是右兄弟
 		k:=broNode.keys.Remove(0).value.(int)
@@ -334,7 +325,6 @@ func borrowKVFromBrother(node,broNode *TreeNode){
 		//broNode是左兄弟
 		k:=broNode.keys.Remove(broNode.keys.Len()-1).value.(int)
 		v:=broNode.children.Remove(broNode.children.Len()-1).value
-		log1.Println("broNode是左兄弟,租借的k为",k)
 		if !node.isLeaf{
 			v.(*TreeNode).parent=node
 			node.children.Insert(v.(*TreeNode),0)
@@ -391,8 +381,6 @@ func updateFatherKey(originKey,key int, node *TreeNode) {
 	//父节点一定存在这个key
 
 	pos, _ := getPos(node, originKey)
-	log1.Println("父节点",node.keys.head.next.value," ",node.keys.tail.value,
-		"更新了key:",key,"pos: ",pos,"len:",node.keys.Len())
 	node.keys.Relace(key, pos)
 	//当pos的key是当前节点keys的最大值才递归
 	if pos>=node.keys.Len()-1{
